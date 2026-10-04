@@ -9,8 +9,9 @@ import { LiveAnalyzerView } from "@/components/views/live-analyzer-view";
 import { PulseStreamView } from "@/components/views/pulse-stream-view";
 import { AnalyticsView } from "@/components/views/analytics-view";
 import { HistoryView } from "@/components/views/history-view";
+import { BatchUploadView } from "@/components/views/batch-upload-view";
 
-type ViewId = "analyze" | "pulse" | "analytics" | "history";
+type ViewId = "analyze" | "pulse" | "analytics" | "history" | "batch";
 
 const HEADERS: Record<ViewId, { eyebrow: string; title: string; subtitle: string }> = {
   analyze: {
@@ -36,6 +37,12 @@ const HEADERS: Record<ViewId, { eyebrow: string; title: string; subtitle: string
     title: "Every verdict, searchable.",
     subtitle:
       "A full log of every text you have analyzed. Search by keyword, filter by label or source, and clear it all when you are done.",
+  },
+  batch: {
+    eyebrow: "Batch Upload",
+    title: "Analyze an entire dataset at once.",
+    subtitle:
+      "Upload a CSV or PDF containing customer feedback, reviews, or any text corpus. Every row is classified in your browser using the same DistilBERT model — then get a distribution dashboard, top positive/negative samples, and an annotated CSV download.",
   },
 };
 
@@ -66,6 +73,7 @@ export default function Home() {
         {view === "pulse" && <PulseStreamView />}
         {view === "analytics" && <AnalyticsView />}
         {view === "history" && <HistoryView />}
+        {view === "batch" && <BatchUploadView />}
       </main>
 
       <SiteFooter />

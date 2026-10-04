@@ -15,6 +15,7 @@ interface Props {
 const NAV = [
   { id: "analyze", label: "Live Analyzer" },
   { id: "pulse", label: "Pulse Stream" },
+  { id: "batch", label: "Batch Upload" },
   { id: "analytics", label: "Analytics" },
   { id: "history", label: "History" },
 ];
