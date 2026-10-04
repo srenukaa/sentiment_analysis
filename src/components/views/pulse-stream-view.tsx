@@ -1,20 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Radio, Pause, Play, Square, ChevronDown, Filter } from "lucide-react";
+import { Radio, Pause, Play, Square, Filter, AlertTriangle, Loader2 } from "lucide-react";
 import { useSentimentEngine } from "@/hooks/use-sentiment-engine";
 import { SentimentBadge } from "@/components/sentiment-badge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CHANNELS, type ChannelDef } from "@/lib/channels";
-import { cn, relativeTime, sample } from "@/lib/utils";
+import { CHANNELS } from "@/lib/channels";
+import { cn, relativeTime } from "@/lib/utils";
 import type { SentimentLabel, SentimentResult } from "@/lib/sentiment";
+
+/**
+ * Pulse Stream view — wired to the live Reddit proxy at /api/webhook/reddit-feed.
+ *
+ * Pipeline:
+ *   1. On Start, the view fetches a batch of fresh comments from the proxy
+ *      for the selected channel (or all channels).
+ *   2. Comments are pushed onto a local queue.
+ *   3. A speed-driven interval pops one item off the queue at a time and
+ *      runs it through the in-browser sentiment engine.
+ *   4. When the queue runs low, a fresh batch is fetched in the background.
+ *   5. Rate-limits / network errors surface as a non-blocking banner so
+ *      the feed keeps showing whatever it has already collected.
+ */
 
 interface FeedItem {
   id: string;
   text: string;
+  author: string;
   channel: string;
   channelLabel: string;
+  subreddit: string;
+  redditTimestamp: number; // seconds since epoch
+  score: number;
   result?: SentimentResult;
   status: "pending" | "done" | "error";
   arrivedAt: number;
@@ -22,11 +40,20 @@ interface FeedItem {
 
 type StreamState = "idle" | "running" | "paused";
 
+interface FetchState {
+  loading: boolean;
+  error: string | null;
+  lastFetchedAt: number | null;
+}
+
 const SPEEDS = [
   { ms: 5000, label: "Slow" },
   { ms: 2500, label: "Normal" },
   { ms: 1200, label: "Fast" },
 ];
+
+const MAX_FEED_ITEMS = 30;
+const QUEUE_LOW_WATERMARK = 3;
 
 export function PulseStreamView() {
   const { run, warm } = useSentimentEngine();
@@ -35,7 +62,20 @@ export function PulseStreamView() {
   const [speedIdx, setSpeedIdx] = useState(1);
   const [activeChannel, setActiveChannel] = useState<string>("all");
   const [filterLabel, setFilterLabel] = useState<SentimentLabel | "ALL">("ALL");
+  const [fetchState, setFetchState] = useState<FetchState>({
+    loading: false,
+    error: null,
+    lastFetchedAt: null,
+  });
 
+  // Queue of fetched-but-not-yet-analyzed comments. Held in a ref so the
+  // interval loop can drain it without re-rendering on every pop.
+  const queueRef = useRef<FeedItem[]>([]);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  // Mirror reactive state into refs so the interval closure always reads the
+  // latest values without needing them as dependencies (which would
+  // otherwise cancel and restart the interval on every change).
   const streamStateRef = useRef(streamState);
   const speedRef = useRef(speedIdx);
   const channelRef = useRef(activeChannel);
@@ -43,42 +83,121 @@ export function PulseStreamView() {
   useEffect(() => { speedRef.current = speedIdx; }, [speedIdx]);
   useEffect(() => { channelRef.current = activeChannel; }, [activeChannel]);
 
-  const tick = useCallback(async () => {
-    // Don't run if model not ready yet — warm it
-    await warm();
-
-    // Pick a channel
-    const channelPool: ChannelDef[] =
-      channelRef.current === "all" ? CHANNELS : CHANNELS.filter((c) => c.id === channelRef.current);
-    if (channelPool.length === 0) return;
-    const ch = sample(channelPool);
-    const text = sample(ch.samples);
-
-    const id = `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const item: FeedItem = {
-      id,
-      text,
-      channel: ch.id,
-      channelLabel: ch.label,
-      status: "pending",
-      arrivedAt: Date.now(),
-    };
-    setItems((prev) => [item, ...prev].slice(0, 30));
-
+  /**
+   * Fetch a fresh batch of comments from the Reddit proxy. Pushes new items
+   * onto the queue (skipping items we've already seen). Never throws —
+   * errors land in fetchState.error so the UI can show a banner.
+   */
+  const fetchBatch = useCallback(async () => {
+    if (fetchState.loading) return;
+    setFetchState((s) => ({ ...s, loading: true }));
     try {
-      const r = await run(text, { source: "pulse", channel: ch.id });
+      const ch = channelRef.current;
+      const url = `/api/webhook/reddit-feed?channel=${encodeURIComponent(ch)}&t=${Date.now()}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`proxy HTTP ${res.status}`);
+      }
+      const json = await res.json() as {
+        ok: boolean;
+        items: Array<{
+          id: string;
+          text: string;
+          author: string;
+          channel: string;
+          channelLabel: string;
+          subreddit: string;
+          timestamp: number;
+          score: number;
+        }>;
+        errors?: Array<{ channel: string; error: string }>;
+        message?: string;
+      };
+
+      const fresh: FeedItem[] = [];
+      for (const c of json.items ?? []) {
+        if (seenIdsRef.current.has(c.id)) continue;
+        seenIdsRef.current.add(c.id);
+        fresh.push({
+          id: c.id,
+          text: c.text,
+          author: c.author,
+          channel: c.channel,
+          channelLabel: c.channelLabel,
+          subreddit: c.subreddit,
+          redditTimestamp: c.timestamp,
+          score: c.score,
+          status: "pending",
+          arrivedAt: Date.now(),
+        });
+      }
+
+      if (fresh.length > 0) {
+        queueRef.current.push(...fresh);
+      }
+
+      // Surface proxy-side errors (e.g. Reddit rate-limited) but only if we
+      // have nothing in the queue — otherwise the feed is still flowing.
+      const proxyErrors = json.errors ?? [];
+      const allFailed = json.ok === false && fresh.length === 0;
+      setFetchState({
+        loading: false,
+        error: allFailed
+          ? json.message ?? "Reddit is rate-limiting or unreachable."
+          : proxyErrors.length > 0
+            ? `Partial fetch — some subreddits returned errors: ${proxyErrors.map((e) => e.channel).join(", ")}`
+            : null,
+        lastFetchedAt: Date.now(),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "network error";
+      setFetchState({
+        loading: false,
+        error: `Could not reach the live feed proxy: ${msg}`,
+        lastFetchedAt: Date.now(),
+      });
+    }
+  }, [fetchState.loading]);
+
+  /**
+   * Pop one item off the queue, push it onto the visible feed, and run it
+   * through the sentiment model. If the queue is running low, kick off a
+   * background fetch.
+   */
+  const tick = useCallback(async () => {
+    // Make sure the model is loaded before we start classifying.
+    try {
+      await warm();
+    } catch (e) {
+      console.error("model warm-up failed", e);
+    }
+
+    // Refill the queue if it's getting empty
+    if (queueRef.current.length <= QUEUE_LOW_WATERMARK) {
+      void fetchBatch();
+    }
+
+    const next = queueRef.current.shift();
+    if (!next) return; // nothing to show yet — interval will retry next cycle
+
+    // Push onto visible feed
+    setItems((prev) => [next, ...prev].slice(0, MAX_FEED_ITEMS));
+
+    // Run sentiment analysis
+    try {
+      const r = await run(next.text, { source: "pulse", channel: next.channel });
       setItems((prev) =>
-        prev.map((it) => (it.id === id ? { ...it, result: r, status: "done" } : it))
+        prev.map((it) => (it.id === next.id ? { ...it, result: r, status: "done" } : it))
       );
     } catch (e) {
-      console.error(e);
+      console.error("sentiment analysis failed", e);
       setItems((prev) =>
-        prev.map((it) => (it.id === id ? { ...it, status: "error" } : it))
+        prev.map((it) => (it.id === next.id ? { ...it, status: "error" } : it))
       );
     }
-  }, [run, warm]);
+  }, [run, warm, fetchBatch]);
 
-  // Interval loop — respects stream state and speed
+  // Interval loop — respects stream state and speed.
   useEffect(() => {
     if (streamState !== "running") return;
     let cancelled = false;
@@ -98,6 +217,15 @@ export function PulseStreamView() {
     };
   }, [streamState, tick]);
 
+  // When the user changes the channel while streaming, reset the queue
+  // and fetch a fresh batch immediately so the new channel is represented.
+  useEffect(() => {
+    if (streamStateRef.current !== "running") return;
+    queueRef.current = [];
+    seenIdsRef.current = new Set();
+    void fetchBatch();
+  }, [activeChannel, fetchBatch]);
+
   const visibleItems = useMemo(() => {
     if (filterLabel === "ALL") return items;
     return items.filter((it) => it.result?.label === filterLabel);
@@ -114,10 +242,13 @@ export function PulseStreamView() {
   const startStream = () => {
     warm();
     setStreamState("running");
+    // Kick off an immediate fetch so the first item arrives ASAP
+    void fetchBatch();
   };
   const pauseStream = () => setStreamState("paused");
   const stopStream = () => {
     setStreamState("idle");
+    queueRef.current = [];
   };
 
   return (
@@ -133,17 +264,22 @@ export function PulseStreamView() {
                   streamState === "paused" ? "bg-saffron" : "bg-muted-foreground/40"
                 )} />
               </span>
-              <span className="eyebrow text-muted-foreground">
-                {streamState === "running" ? "Streaming live" :
+              <span className="eyebrow text-muted-foreground flex items-center gap-1.5">
+                {streamState === "running" ? "Streaming live · " + activeSubreddits(activeChannel).join(", ") :
                  streamState === "paused" ? "Paused" : "Idle"}
+                {fetchState.loading && (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                )}
               </span>
             </div>
             <h2 className="font-display text-2xl font-semibold tracking-tight">
               Live Pulse Stream
             </h2>
             <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-              A simulated real-time feed of customer feedback across four verticals.
-              Each incoming message is run through the model on arrival and classified in seconds.
+              A live feed of real customer comments pulled from public discussion
+              communities via our server-side proxy. Each incoming message is
+              run through the in-browser sentiment model on arrival and
+              classified in seconds.
             </p>
           </div>
 
@@ -220,7 +356,35 @@ export function PulseStreamView() {
             </select>
           </div>
         </div>
+
+        {/* Last fetched + error banner */}
+        {fetchState.lastFetchedAt && (
+          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>
+              Last refresh: <span className="tabular-nums">{relativeTime(new Date(fetchState.lastFetchedAt))}</span>
+            </span>
+            <span>
+              Queue: <span className="tabular-nums">{queueRef.current.length}</span> comments waiting
+            </span>
+          </div>
+        )}
       </section>
+
+      {/* Error banner — non-blocking */}
+      {fetchState.error && (
+        <div className="rounded-xl border border-saffron/40 bg-saffron/10 px-4 py-3 flex items-start gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-saffron shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-saffron mb-0.5">
+              Live feed notice
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {fetchState.error} The feed keeps showing what was already collected.
+              New attempts happen automatically in the background.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filter row */}
       <div className="flex flex-wrap items-center gap-2">
@@ -247,11 +411,19 @@ export function PulseStreamView() {
 
       {/* Live feed */}
       <section className="space-y-2.5">
-        {visibleItems.length === 0 && (
+        {visibleItems.length === 0 && !fetchState.loading && (
           <div className="rounded-2xl border border-dashed border-border/70 bg-card/50 p-10 text-center">
             <Radio className="h-6 w-6 mx-auto text-muted-foreground/60 mb-2" />
             <p className="text-sm text-muted-foreground">
               No messages in the feed yet. Press <strong>Start stream</strong> above.
+            </p>
+          </div>
+        )}
+        {visibleItems.length === 0 && fetchState.loading && (
+          <div className="rounded-2xl border border-dashed border-border/70 bg-card/50 p-10 text-center">
+            <Loader2 className="h-6 w-6 mx-auto text-muted-foreground/60 mb-2 animate-spin" />
+            <p className="text-sm text-muted-foreground">
+              Fetching live comments from Reddit…
             </p>
           </div>
         )}
@@ -282,9 +454,17 @@ function FeedCard({ item }: { item: FeedItem }) {
           <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wider">
             {item.channelLabel}
           </Badge>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {relativeTime(new Date(item.arrivedAt))}
+          <span className="text-[11px] text-muted-foreground">
+            u/{item.author}
           </span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            · {relativeTime(new Date(item.redditTimestamp * 1000))}
+          </span>
+          {item.score !== 0 && (
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              · ↑ {item.score}
+            </span>
+          )}
         </div>
         {item.status === "pending" && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -311,8 +491,28 @@ function FeedCard({ item }: { item: FeedItem }) {
             neu {(item.result.neutral * 100).toFixed(0)}% ·
             neg {(item.result.negative * 100).toFixed(0)}%
           </span>
+          <span className="h-3 w-px bg-border" />
+          <a
+            href={`https://lemmy.world/c/${item.subreddit}`}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto link-dotted hover:text-foreground transition-colors"
+          >
+            c/{item.subreddit}
+          </a>
         </div>
       )}
     </article>
   );
+}
+
+/**
+ * Returns the list of community tags (e.g. "c/BuyItForLife") for the
+ * currently selected channel, used to display
+ * "Streaming live · c/BuyItForLife, c/food…" in the eyebrow.
+ */
+function activeSubreddits(channel: string): string[] {
+  if (channel === "all") return CHANNELS.map((c) => `c/${c.lemmyCommunity}`);
+  const found = CHANNELS.find((c) => c.id === channel);
+  return found ? [`c/${found.lemmyCommunity}`] : [];
 }

@@ -23,7 +23,7 @@ const HEADERS: Record<ViewId, { eyebrow: string; title: string; subtitle: string
     eyebrow: "Pulse Stream",
     title: "Watch opinions arrive, one at a time.",
     subtitle:
-      "A simulated live feed of customer feedback from e-commerce, food delivery, streaming, and support channels. Each incoming message is classified the instant it lands — exactly how a production monitor would work.",
+      "A live feed of real customer comments pulled from public discussion communities via our server-side proxy. Each incoming message is classified the instant it lands — exactly how a production sentiment monitor would work.",
   },
   analytics: {
     eyebrow: "Analytics",

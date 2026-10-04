@@ -261,11 +261,27 @@ Then visit `http://localhost:3001` (or `http://192.168.1.42:3001` on your phone)
   no concurrency. SQLite is a single file, ships with zero setup, and
   survives restarts. For a production deployment you would swap to
   Postgres by changing one line in `prisma/schema.prisma`.
+- **Why live data from Lemmy instead of Reddit?** Reddit deprecated
+  unauthenticated JSON access in 2023 — all `/r/<sub>/comments.json`
+  requests without OAuth now return HTTP 403. To keep the demo working
+  without forcing the user to register Reddit OAuth credentials, the
+  server-side proxy at `/api/webhook/reddit-feed` fetches from Lemmy
+  (a federated Reddit-alternative with a fully open JSON API), mapping
+  each Sentira channel to a similar Lemmy community. The route still
+  tries Reddit first as a fallback in case the policy reverts. See
+  `src/app/api/webhook/reddit-feed/route.ts` for the implementation.
+- **Why a server-side proxy?** Two reasons: (1) CORS — Lemmy allows
+  cross-origin browser requests, but adding a proxy lets us normalize
+  the payload and stay source-agnostic; (2) the proxy can scrub
+  Reddit-specific markdown and limit the response size before the
+  client ever sees it.
 - **Why simulated pulse instead of real Twitter API?** Twitter/X API
   access requires paid developer credentials and has heavy rate limits.
-  The simulation lets you demo the full real-time UX without those
-  dependencies. To plug in a real feed, replace the `tick()` function
-  in `pulse-stream-view.tsx` with a WebSocket subscription.
+  The live Reddit/Lemmy feed is free, open, and produces genuine
+  customer voices. To plug in a different real-time source, replace
+  the `fetchBatch()` function in `pulse-stream-view.tsx` with a
+  WebSocket subscription — the rest of the pipeline (queue → analyze →
+  display → persist) stays unchanged.
 
 ---
 

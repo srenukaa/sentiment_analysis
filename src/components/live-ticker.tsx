@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn, relativeTime, sample } from "@/lib/utils";
-import { ALL_SAMPLES } from "@/lib/channels";
+import { cn, relativeTime } from "@/lib/utils";
 
 interface TickerItem {
   text: string;
+  author: string;
+  subreddit: string;
   label: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   at: number;
 }
 
 /**
- * Top ticker — shows a faux "live sentiment in the wild" strip.
- * Pulls a random sample every few seconds, tags it with a sentiment
- * using a quick heuristic (so it doesn't depend on the HF model warming up).
+ * Top ticker — a decorative marquee strip showing real Reddit comments
+ * tagged with a fast lexical heuristic. Uses the live Reddit proxy so the
+ * strip always shows genuine customer voices, not canned samples.
  *
- * Used purely as decorative context, not as the source of truth.
+ * Does NOT use the HF model (the analyzer view does that). The ticker
+ * is purely ambient context.
  */
 const QUICK_LEX = {
-  POSITIVE: ["love", "amazing", "great", "excellent", "best", "fantastic", "happy", "perfect", "wonderful", "brilliant", "delicious", "impressed", "flawless", "premium", "thrilled"],
-  NEGATIVE: ["bad", "terrible", "worst", "broken", "hate", "awful", "disappointing", "rude", "cold", "soggy", "lag", "buffering", "waste", "frustrating", "unacceptable"],
+  POSITIVE: ["love", "amazing", "great", "excellent", "best", "fantastic", "happy", "perfect", "wonderful", "brilliant", "delicious", "impressed", "flawless", "premium", "thrilled", "recommend", "awesome"],
+  NEGATIVE: ["bad", "terrible", "worst", "broken", "hate", "awful", "disappointing", "rude", "cold", "soggy", "lag", "buffering", "waste", "frustrating", "unacceptable", "garbage", "scam"],
 };
 
 function quickLabel(text: string): TickerItem["label"] {
@@ -37,24 +39,38 @@ export function LiveTicker() {
   const [items, setItems] = useState<TickerItem[]>([]);
 
   useEffect(() => {
-    const seed: TickerItem[] = Array.from({ length: 8 }, () => {
-      const s = sample(ALL_SAMPLES);
-      return { text: s.text, label: quickLabel(s.text), at: Date.now() };
-    });
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
 
-    // Defer the initial state update outside the effect body to avoid cascading renders.
-    const seedTimer = setTimeout(() => setItems(seed), 0);
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/webhook/reddit-feed?channel=all&t=${Date.now()}`);
+        if (!res.ok) return;
+        const json = await res.json() as {
+          items?: Array<{ text: string; author: string; subreddit: string; timestamp: number }>;
+        };
+        if (cancelled || !json.items?.length) return;
 
-    const interval = setInterval(() => {
-      const s = sample(ALL_SAMPLES);
-      setItems((prev) =>
-        [...prev.slice(-7), { text: s.text, label: quickLabel(s.text), at: Date.now() }]
-      );
-    }, 4500);
+        const mapped: TickerItem[] = json.items.slice(0, 12).map((c) => ({
+          text: c.text.length > 140 ? c.text.slice(0, 140) + "…" : c.text,
+          author: c.author,
+          subreddit: c.subreddit,
+          label: quickLabel(c.text),
+          at: c.timestamp * 1000,
+        }));
+        setItems(mapped);
+      } catch {
+        // Silent fail — the ticker is decorative.
+      }
+    };
+
+    load();
+    // Refresh every 60 seconds — Reddit's comments.json doesn't change faster
+    timer = setInterval(load, 60_000);
 
     return () => {
-      clearTimeout(seedTimer);
-      clearInterval(interval);
+      cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 
@@ -69,7 +85,7 @@ export function LiveTicker() {
         <span className="relative inline-flex shrink-0">
           <span className="h-2 w-2 rounded-full bg-positive live-dot text-positive" />
         </span>
-        <span className="eyebrow text-muted-foreground shrink-0 hidden sm:inline">Live Wire</span>
+        <span className="eyebrow text-muted-foreground shrink-0 hidden sm:inline">Live Wire · Reddit</span>
         <div className="relative flex-1 overflow-hidden">
           <div className="flex items-center gap-8 animate-marquee whitespace-nowrap">
             {doubled.map((it, i) => (
@@ -82,6 +98,7 @@ export function LiveTicker() {
                     it.label === "NEUTRAL" && "bg-neutral-sent"
                   )}
                 />
+                <span className="text-muted-foreground shrink-0">r/{it.subreddit}</span>
                 <span className="text-foreground/75 max-w-[280px] truncate">{it.text}</span>
                 <span className="text-[10px] text-muted-foreground tabular-nums">{relativeTime(new Date(it.at))}</span>
                 <span className="text-border">·</span>
