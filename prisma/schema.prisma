@@ -1,0 +1,45 @@
+// Sentira — Real-time Sentiment Intelligence
+// Prisma schema (SQLite, file-based, perfect for FYP demo)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Each text submitted to the analyzer is stored as an Analysis record.
+model Analysis {
+  id        String   @id @default(cuid())
+  /// Source of the text — manual entry, pulse stream, batch upload
+  source    String   @default("manual") // "manual" | "pulse" | "batch"
+  /// Original text the user submitted
+  text      String
+  /// Sentiment label predicted by the HF model: POSITIVE | NEGATIVE | NEUTRAL
+  label     String
+  /// Confidence score 0..1
+  score     Float
+  /// Token count of input text (rough: split by whitespace)
+  tokens    Int      @default(0)
+  /// Optional channel tag (used by Pulse stream: e.g. "ecommerce", "food-delivery", "streaming")
+  channel   String?
+  createdAt DateTime @default(now())
+
+  @@index([label])
+  @@index([source])
+  @@index([createdAt])
+  @@index([channel])
+}
+
+/// Aggregated daily sentiment snapshot — refreshed by API route after each analysis.
+model DailyStat {
+  id        String   @id @default(cuid())
+  date      String   @unique // YYYY-MM-DD
+  positive  Int      @default(0)
+  negative  Int      @default(0)
+  neutral   Int      @default(0)
+  total     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
