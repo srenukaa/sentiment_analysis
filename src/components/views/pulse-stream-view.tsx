@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Radio, Pause, Play, Square, Filter, AlertTriangle, Loader2 } from "lucide-react";
+import { Radio, Pause, Play, Square, Filter, AlertTriangle, Loader2, ExternalLink } from "lucide-react";
 import { useSentimentEngine } from "@/hooks/use-sentiment-engine";
 import { SentimentBadge } from "@/components/sentiment-badge";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,17 @@ interface FeedItem {
   id: string;
   text: string;
   author: string;
+  authorProfileUrl: string;
   channel: string;
   channelLabel: string;
   subreddit: string;
+  /** Direct permalink to this exact comment on reddit.com */
+  permalink: string;
+  /** Title of the post this comment is replying to */
+  postTitle: string;
+  /** Permalink to the parent post */
+  postPermalink: string;
   redditTimestamp: number; // seconds since epoch
-  score: number;
   result?: SentimentResult;
   status: "pending" | "done" | "error";
   arrivedAt: number;
@@ -104,11 +110,14 @@ export function PulseStreamView() {
           id: string;
           text: string;
           author: string;
+          authorProfileUrl?: string;
           channel: string;
           channelLabel: string;
           subreddit: string;
+          permalink: string;
+          postTitle: string;
+          postPermalink: string;
           timestamp: number;
-          score: number;
         }>;
         errors?: Array<{ channel: string; error: string }>;
         message?: string;
@@ -122,11 +131,14 @@ export function PulseStreamView() {
           id: c.id,
           text: c.text,
           author: c.author,
+          authorProfileUrl: c.authorProfileUrl ?? "",
           channel: c.channel,
           channelLabel: c.channelLabel,
           subreddit: c.subreddit,
+          permalink: c.permalink,
+          postTitle: c.postTitle,
+          postPermalink: c.postPermalink,
           redditTimestamp: c.timestamp,
-          score: c.score,
           status: "pending",
           arrivedAt: Date.now(),
         });
@@ -449,25 +461,30 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 function FeedCard({ item }: { item: FeedItem }) {
   return (
     <article className="animate-rise rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
+      {/* Top row: channel badge, author, timestamp, sentiment badge */}
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wider">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wider shrink-0">
             {item.channelLabel}
           </Badge>
-          <span className="text-[11px] text-muted-foreground">
-            u/{item.author}
-          </span>
+          {item.authorProfileUrl ? (
+            <a
+              href={item.authorProfileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors link-dotted"
+            >
+              u/{item.author}
+            </a>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">u/{item.author}</span>
+          )}
           <span className="text-[11px] text-muted-foreground tabular-nums">
             · {relativeTime(new Date(item.redditTimestamp * 1000))}
           </span>
-          {item.score !== 0 && (
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              · ↑ {item.score}
-            </span>
-          )}
         </div>
         {item.status === "pending" && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-saffron animate-pulse" />
             analyzing
           </span>
@@ -479,26 +496,48 @@ function FeedCard({ item }: { item: FeedItem }) {
           <span className="text-[11px] text-negative">failed</span>
         )}
       </div>
+
+      {/* Post title (context) — clickable to open the parent post on Reddit */}
+      <a
+        href={item.postPermalink}
+        target="_blank"
+        rel="noreferrer"
+        className="group flex items-start gap-1.5 mb-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+        title="Open the original post on Reddit"
+      >
+        <span className="font-medium uppercase tracking-wide text-[10px] text-muted-foreground/70 mt-0.5 shrink-0">
+          On
+        </span>
+        <span className="font-display italic text-foreground/80 group-hover:text-foreground transition-colors line-clamp-2">
+          “{item.postTitle}”
+        </span>
+      </a>
+
+      {/* The actual comment text */}
       <p className="text-[15px] leading-relaxed text-foreground/90">{item.text}</p>
+
+      {/* Footer: confidence + sentiment breakdown + view-on-reddit links */}
       {item.status === "done" && item.result && (
-        <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground">
           <span className="tabular-nums">
             confidence {(item.result.score * 100).toFixed(1)}%
           </span>
           <span className="h-3 w-px bg-border" />
-          <span>
+          <span className="tabular-nums">
             pos {(item.result.positive * 100).toFixed(0)}% ·
             neu {(item.result.neutral * 100).toFixed(0)}% ·
             neg {(item.result.negative * 100).toFixed(0)}%
           </span>
           <span className="h-3 w-px bg-border" />
           <a
-            href={`https://lemmy.world/c/${item.subreddit}`}
+            href={item.permalink}
             target="_blank"
             rel="noreferrer"
-            className="ml-auto link-dotted hover:text-foreground transition-colors"
+            className="ml-auto inline-flex items-center gap-1 link-dotted hover:text-foreground transition-colors"
+            title="View this exact comment on Reddit"
           >
-            c/{item.subreddit}
+            <ExternalLink className="h-3 w-3" />
+            View on Reddit
           </a>
         </div>
       )}
@@ -507,12 +546,12 @@ function FeedCard({ item }: { item: FeedItem }) {
 }
 
 /**
- * Returns the list of community tags (e.g. "c/BuyItForLife") for the
+ * Returns the list of subreddit tags (e.g. "r/BuyItForLife") for the
  * currently selected channel, used to display
- * "Streaming live · c/BuyItForLife, c/food…" in the eyebrow.
+ * "Streaming live · r/BuyItForLife, r/doordash…" in the eyebrow.
  */
 function activeSubreddits(channel: string): string[] {
-  if (channel === "all") return CHANNELS.map((c) => `c/${c.lemmyCommunity}`);
+  if (channel === "all") return CHANNELS.map((c) => `r/${c.subreddit}`);
   const found = CHANNELS.find((c) => c.id === channel);
-  return found ? [`c/${found.lemmyCommunity}`] : [];
+  return found ? [`r/${found.subreddit}`] : [];
 }

@@ -7,6 +7,8 @@ interface TickerItem {
   text: string;
   author: string;
   subreddit: string;
+  permalink: string;
+  postTitle: string;
   label: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   at: number;
 }
@@ -47,7 +49,14 @@ export function LiveTicker() {
         const res = await fetch(`/api/webhook/reddit-feed?channel=all&t=${Date.now()}`);
         if (!res.ok) return;
         const json = await res.json() as {
-          items?: Array<{ text: string; author: string; subreddit: string; timestamp: number }>;
+          items?: Array<{
+            text: string;
+            author: string;
+            subreddit: string;
+            permalink: string;
+            postTitle: string;
+            timestamp: number;
+          }>;
         };
         if (cancelled || !json.items?.length) return;
 
@@ -55,6 +64,8 @@ export function LiveTicker() {
           text: c.text.length > 140 ? c.text.slice(0, 140) + "…" : c.text,
           author: c.author,
           subreddit: c.subreddit,
+          permalink: c.permalink,
+          postTitle: c.postTitle,
           label: quickLabel(c.text),
           at: c.timestamp * 1000,
         }));
@@ -89,7 +100,14 @@ export function LiveTicker() {
         <div className="relative flex-1 overflow-hidden">
           <div className="flex items-center gap-8 animate-marquee whitespace-nowrap">
             {doubled.map((it, i) => (
-              <span key={i} className="inline-flex items-center gap-2 text-xs">
+              <a
+                key={i}
+                href={it.permalink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-xs hover:opacity-80 transition-opacity"
+                title={`"${it.postTitle}" — click to view on Reddit`}
+              >
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full shrink-0",
@@ -102,7 +120,7 @@ export function LiveTicker() {
                 <span className="text-foreground/75 max-w-[280px] truncate">{it.text}</span>
                 <span className="text-[10px] text-muted-foreground tabular-nums">{relativeTime(new Date(it.at))}</span>
                 <span className="text-border">·</span>
-              </span>
+              </a>
             ))}
           </div>
         </div>
