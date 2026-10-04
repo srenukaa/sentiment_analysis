@@ -23,21 +23,21 @@ export function ConfidenceGauge({ result, pending, className }: Props) {
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
         <span>Confidence distribution</span>
-        {pending && <span className="text-[var(--clay)]">analyzing…</span>}
+        {pending && <span className="text-clay">analyzing…</span>}
       </div>
       <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
         {/* Stacked bars */}
         <div className="flex h-full w-full">
           <div
-            className="h-full bg-[var(--positive)] transition-all duration-500 ease-out"
+            className="h-full bg-positive transition-all duration-500 ease-out"
             style={{ width: `${pos * 100}%` }}
           />
           <div
-            className="h-full bg-[var(--neutral-sent)] transition-all duration-500 ease-out"
+            className="h-full bg-neutral-sent transition-all duration-500 ease-out"
             style={{ width: `${neu * 100}%` }}
           />
           <div
-            className="h-full bg-[var(--negative)] transition-all duration-500 ease-out"
+            className="h-full bg-negative transition-all duration-500 ease-out"
             style={{ width: `${neg * 100}%` }}
           />
         </div>

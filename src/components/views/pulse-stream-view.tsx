@@ -129,8 +129,8 @@ export function PulseStreamView() {
             <div className="flex items-center gap-2">
               <span className="relative inline-flex">
                 <span className={cn("relative h-2 w-2 rounded-full",
-                  streamState === "running" ? "bg-[var(--positive)] live-dot text-[var(--positive)]" :
-                  streamState === "paused" ? "bg-[var(--saffron)]" : "bg-muted-foreground/40"
+                  streamState === "running" ? "bg-positive live-dot text-positive" :
+                  streamState === "paused" ? "bg-saffron" : "bg-muted-foreground/40"
                 )} />
               </span>
               <span className="eyebrow text-muted-foreground">
@@ -149,7 +149,7 @@ export function PulseStreamView() {
 
           <div className="flex items-center gap-2">
             {streamState === "idle" && (
-              <Button onClick={startStream} className="bg-[var(--clay)] hover:bg-[var(--clay)]/90 text-[var(--background)]">
+              <Button onClick={startStream} className="bg-clay hover:bg-clay/90 text-[var(--background)]">
                 <Play className="h-4 w-4 mr-1.5" />
                 Start stream
               </Button>
@@ -161,7 +161,7 @@ export function PulseStreamView() {
               </Button>
             )}
             {streamState === "paused" && (
-              <Button onClick={() => setStreamState("running")} className="bg-[var(--clay)] hover:bg-[var(--clay)]/90 text-[var(--background)]">
+              <Button onClick={() => setStreamState("running")} className="bg-clay hover:bg-clay/90 text-[var(--background)]">
                 <Play className="h-4 w-4 mr-1.5" />
                 Resume
               </Button>
@@ -195,7 +195,7 @@ export function PulseStreamView() {
                   className={cn(
                     "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
                     speedIdx === i
-                      ? "bg-[var(--clay)] text-[var(--background)]"
+                      ? "bg-clay text-[var(--background)]"
                       : "bg-muted/60 text-muted-foreground hover:bg-muted"
                   )}
                 >
@@ -288,7 +288,7 @@ function FeedCard({ item }: { item: FeedItem }) {
         </div>
         {item.status === "pending" && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--saffron)] animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-saffron animate-pulse" />
             analyzing
           </span>
         )}
@@ -296,7 +296,7 @@ function FeedCard({ item }: { item: FeedItem }) {
           <SentimentBadge label={item.result.label} size="sm" />
         )}
         {item.status === "error" && (
-          <span className="text-[11px] text-[var(--negative)]">failed</span>
+          <span className="text-[11px] text-negative">failed</span>
         )}
       </div>
       <p className="text-[15px] leading-relaxed text-foreground/90">{item.text}</p>

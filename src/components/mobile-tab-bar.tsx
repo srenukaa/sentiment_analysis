@@ -37,12 +37,12 @@ export function MobileTabBar({ active, onNavigate }: Props) {
               aria-current={isActive ? "page" : undefined}
             >
               {isActive && (
-                <span className="absolute top-0 h-0.5 w-8 rounded-full bg-[var(--clay)]" />
+                <span className="absolute top-0 h-0.5 w-8 rounded-full bg-clay" />
               )}
               <Icon
                 className={cn(
                   "h-5 w-5 transition-colors",
-                  isActive ? "text-[var(--clay)]" : "text-muted-foreground"
+                  isActive ? "text-clay" : "text-muted-foreground"
                 )}
                 strokeWidth={isActive ? 2.4 : 2}
               />

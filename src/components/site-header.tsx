@@ -39,7 +39,7 @@ export function Header({ active, onNavigate }: Props) {
             onNavigate("analyze");
           }}
         >
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--clay)] text-[var(--background)] shadow-sm transition-transform group-hover:scale-105">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-clay text-[var(--background)] shadow-sm transition-transform group-hover:scale-105">
             <Activity className="h-4 w-4" strokeWidth={2.5} />
           </span>
           <div className="flex flex-col leading-none">
@@ -65,7 +65,7 @@ export function Header({ active, onNavigate }: Props) {
             >
               {n.label}
               {active === n.id && (
-                <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--clay)]" />
+                <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-clay" />
               )}
             </button>
           ))}

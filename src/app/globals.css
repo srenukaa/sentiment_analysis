@@ -54,6 +54,8 @@
 
 /* Sentira — warm editorial light theme */
 :root {
+  /* Tell native form controls (select, date picker, scrollbar) to use light theme */
+  color-scheme: light;
   --radius: 0.5rem;
   /* Warm cream canvas with paper-like texture feel */
   --background: oklch(0.975 0.012 80);
@@ -111,6 +113,8 @@
 
 /* Warm dark theme — sepia/charcoal, not the typical AI dark blue */
 .dark {
+  /* Native form controls (select dropdown, scrollbar) follow dark theme */
+  color-scheme: dark;
   --background: oklch(0.18 0.012 50);
   --foreground: oklch(0.94 0.010 75);
   --canvas: oklch(0.155 0.012 50);

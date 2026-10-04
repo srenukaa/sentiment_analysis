@@ -11,21 +11,21 @@ interface Props {
 
 const MAP: Record<SentimentLabel, { text: string; bg: string; dot: string; label: string }> = {
   POSITIVE: {
-    text: "text-[var(--positive)]",
-    bg: "bg-[var(--positive)]/10 border-[var(--positive)]/25",
-    dot: "bg-[var(--positive)]",
+    text: "text-positive",
+    bg: "bg-positive/10 border-positive/25",
+    dot: "bg-positive",
     label: "Positive",
   },
   NEGATIVE: {
-    text: "text-[var(--negative)]",
-    bg: "bg-[var(--negative)]/10 border-[var(--negative)]/25",
-    dot: "bg-[var(--negative)]",
+    text: "text-negative",
+    bg: "bg-negative/10 border-negative/25",
+    dot: "bg-negative",
     label: "Negative",
   },
   NEUTRAL: {
-    text: "text-[var(--neutral-sent)]",
-    bg: "bg-[var(--neutral-sent)]/10 border-[var(--neutral-sent)]/25",
-    dot: "bg-[var(--neutral-sent)]",
+    text: "text-neutral-sent",
+    bg: "bg-neutral-sent/10 border-neutral-sent/25",
+    dot: "bg-neutral-sent",
     label: "Neutral",
   },
 };

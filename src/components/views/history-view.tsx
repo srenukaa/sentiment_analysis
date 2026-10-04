@@ -87,7 +87,7 @@ export function HistoryView() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-semibold tracking-tight flex items-center gap-2">
-              <HistoryIcon className="h-5 w-5 text-[var(--clay)]" />
+              <HistoryIcon className="h-5 w-5 text-clay" />
               History
             </h2>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed max-w-2xl">
@@ -99,7 +99,7 @@ export function HistoryView() {
           {items.length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-[var(--negative)] hover:text-[var(--negative)]">
+                <Button variant="outline" size="sm" className="text-negative hover:text-negative">
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   Clear all
                 </Button>
@@ -116,7 +116,7 @@ export function HistoryView() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={clearAll}
-                    className="bg-[var(--negative)] hover:bg-[var(--negative)]/90 text-white"
+                    className="bg-negative hover:bg-negative/90 text-white"
                   >
                     Delete everything
                   </AlertDialogAction>
@@ -145,7 +145,7 @@ export function HistoryView() {
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                   source === s.id
-                    ? "bg-[var(--clay)] text-[var(--background)]"
+                    ? "bg-clay text-[var(--background)]"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >

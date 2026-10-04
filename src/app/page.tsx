@@ -52,7 +52,7 @@ export default function Home() {
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 sm:py-8 pb-24 md:pb-8">
         {/* Page header */}
         <div className="mb-6 sm:mb-8">
-          <div className="eyebrow text-[var(--clay)] mb-2">{h.eyebrow}</div>
+          <div className="eyebrow text-clay mb-2">{h.eyebrow}</div>
           <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.05] mb-2">
             {h.title}
           </h1>

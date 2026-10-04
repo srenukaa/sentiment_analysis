@@ -4,7 +4,7 @@ import { Heart } from "lucide-react";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-border bg-[var(--canvas)]/40">
+    <footer className="mt-auto border-t border-border bg-canvas/40">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
@@ -37,7 +37,7 @@ export function SiteFooter() {
             </div>
             <div className="flex items-center gap-1.5">
               <span>Crafted with</span>
-              <Heart className="h-3 w-3 fill-[var(--clay)] text-[var(--clay)]" />
+              <Heart className="h-3 w-3 fill-clay text-clay" />
               <span>for the final-year demo</span>
             </div>
           </div>

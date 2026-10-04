@@ -79,7 +79,7 @@ export function LiveAnalyzerView() {
       <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
-            <Type className="h-4 w-4 text-[var(--clay)]" />
+            <Type className="h-4 w-4 text-clay" />
             <h2 className="font-display text-xl font-semibold tracking-tight">
               Compose your text
             </h2>
@@ -98,7 +98,7 @@ export function LiveAnalyzerView() {
             value={text}
             onChange={(e) => onChange(e.target.value)}
             placeholder="e.g. The packaging was beautiful and the product works exactly as described — I am impressed."
-            className="min-h-[160px] sm:min-h-[200px] resize-none text-[15px] leading-relaxed bg-background/60 border-border/80 focus-visible:ring-[var(--clay)]/40"
+            className="min-h-[160px] sm:min-h-[200px] resize-none text-[15px] leading-relaxed bg-background/60 border-border/80 focus-visible:ring-clay/40"
             aria-label="Text to analyze"
           />
           {pending && (
@@ -200,7 +200,7 @@ export function LiveAnalyzerView() {
             <button
               key={i}
               onClick={() => onChange(ex)}
-              className="group rounded-xl border border-border bg-card p-4 text-left hover:border-[var(--clay)]/50 hover:bg-[var(--clay)]/[0.03] transition-colors"
+              className="group rounded-xl border border-border bg-card p-4 text-left hover:border-clay/50 hover:bg-clay/[0.03] transition-colors"
             >
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground mb-2">
                 Sample {i + 1}
@@ -228,7 +228,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center text-center py-10 px-4">
-      <div className="grid h-12 w-12 place-items-center rounded-full bg-[var(--clay)]/10 text-[var(--clay)] mb-3">
+      <div className="grid h-12 w-12 place-items-center rounded-full bg-clay/10 text-clay mb-3">
         <Type className="h-5 w-5" />
       </div>
       <h3 className="font-display text-base font-medium mb-1">

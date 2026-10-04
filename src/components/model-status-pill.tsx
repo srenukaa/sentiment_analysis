@@ -26,17 +26,17 @@ export function ModelStatusPill({ className, progress }: Props) {
         progress && progress > 0
           ? `Loading model · ${progress}%`
           : "Loading model from Hugging Face…",
-      cls: "bg-[var(--saffron)]/15 text-[var(--saffron)] border-[var(--saffron)]/30",
+      cls: "bg-saffron/15 text-saffron border-saffron/30",
     },
     ready: {
       icon: <CheckCircle2 className="h-3 w-3" />,
       text: "Model ready · DistilBERT-SST-2",
-      cls: "bg-[var(--positive)]/12 text-[var(--positive)] border-[var(--positive)]/30",
+      cls: "bg-positive/12 text-positive border-positive/30",
     },
     error: {
       icon: <AlertTriangle className="h-3 w-3" />,
       text: "Failed to load model — check connection",
-      cls: "bg-[var(--negative)]/12 text-[var(--negative)] border-[var(--negative)]/30",
+      cls: "bg-negative/12 text-negative border-negative/30",
     },
   };
 

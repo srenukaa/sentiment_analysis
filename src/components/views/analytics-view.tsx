@@ -391,11 +391,11 @@ function Kpi({
   return (
     <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--clay)]/10 text-[var(--clay)]">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-clay/10 text-clay">
           {icon}
         </span>
         {trend !== undefined && trend > 0 && (
-          <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--positive)]">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-positive">
             ▲ rising
           </span>
         )}

@@ -64,10 +64,10 @@ export function LiveTicker() {
   const doubled = [...items, ...items];
 
   return (
-    <div className="relative overflow-hidden border-y border-border bg-[var(--canvas)]/60">
+    <div className="relative overflow-hidden border-y border-border bg-canvas/60">
       <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
         <span className="relative inline-flex shrink-0">
-          <span className="h-2 w-2 rounded-full bg-[var(--positive)] live-dot text-[var(--positive)]" />
+          <span className="h-2 w-2 rounded-full bg-positive live-dot text-positive" />
         </span>
         <span className="eyebrow text-muted-foreground shrink-0 hidden sm:inline">Live Wire</span>
         <div className="relative flex-1 overflow-hidden">
@@ -77,9 +77,9 @@ export function LiveTicker() {
                 <span
                   className={cn(
                     "h-1.5 w-1.5 rounded-full shrink-0",
-                    it.label === "POSITIVE" && "bg-[var(--positive)]",
-                    it.label === "NEGATIVE" && "bg-[var(--negative)]",
-                    it.label === "NEUTRAL" && "bg-[var(--neutral-sent)]"
+                    it.label === "POSITIVE" && "bg-positive",
+                    it.label === "NEGATIVE" && "bg-negative",
+                    it.label === "NEUTRAL" && "bg-neutral-sent"
                   )}
                 />
                 <span className="text-foreground/75 max-w-[280px] truncate">{it.text}</span>
