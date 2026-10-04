@@ -9,6 +9,7 @@ interface TickerItem {
   subreddit: string;
   permalink: string;
   postTitle: string;
+  brand: string;
   label: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   at: number;
 }
@@ -49,25 +50,30 @@ export function LiveTicker() {
         const res = await fetch(`/api/webhook/reddit-feed?channel=all&t=${Date.now()}`);
         if (!res.ok) return;
         const json = await res.json() as {
-          items?: Array<{
-            text: string;
-            author: string;
-            subreddit: string;
-            permalink: string;
+          posts?: Array<{
             postTitle: string;
-            timestamp: number;
+            postBody: string;
+            postAuthor: string;
+            subreddit: string;
+            postPermalink: string;
+            postCreatedUtc: number;
+            brand: { displayName: string };
           }>;
         };
-        if (cancelled || !json.items?.length) return;
+        if (cancelled || !json.posts?.length) return;
 
-        const mapped: TickerItem[] = json.items.slice(0, 12).map((c) => ({
-          text: c.text.length > 140 ? c.text.slice(0, 140) + "…" : c.text,
-          author: c.author,
-          subreddit: c.subreddit,
-          permalink: c.permalink,
-          postTitle: c.postTitle,
-          label: quickLabel(c.text),
-          at: c.timestamp * 1000,
+        const mapped: TickerItem[] = json.posts.slice(0, 12).map((p) => ({
+          // Use post body for sentiment heuristic, fall back to title
+          text: (p.postBody || p.postTitle).length > 140
+            ? (p.postBody || p.postTitle).slice(0, 140) + "…"
+            : (p.postBody || p.postTitle),
+          author: p.postAuthor,
+          subreddit: p.subreddit,
+          permalink: p.postPermalink,
+          postTitle: p.postTitle,
+          brand: p.brand.displayName,
+          label: quickLabel(p.postBody || p.postTitle),
+          at: p.postCreatedUtc * 1000,
         }));
         setItems(mapped);
       } catch {
@@ -76,8 +82,10 @@ export function LiveTicker() {
     };
 
     load();
-    // Refresh every 60 seconds — Reddit's comments.json doesn't change faster
-    timer = setInterval(load, 60_000);
+    // Refresh every 5 minutes — Reddit's rate limit is ~1 req/43s per IP,
+    // so the proxy caches results for 10 minutes. Polling faster just
+    // returns the same cached data and burns CPU on marquee animation.
+    timer = setInterval(load, 5 * 60_000);
 
     return () => {
       cancelled = true;
@@ -116,7 +124,7 @@ export function LiveTicker() {
                     it.label === "NEUTRAL" && "bg-neutral-sent"
                   )}
                 />
-                <span className="text-muted-foreground shrink-0">r/{it.subreddit}</span>
+                <span className="text-muted-foreground shrink-0 font-medium">{it.brand}</span>
                 <span className="text-foreground/75 max-w-[280px] truncate">{it.text}</span>
                 <span className="text-[10px] text-muted-foreground tabular-nums">{relativeTime(new Date(it.at))}</span>
                 <span className="text-border">·</span>
